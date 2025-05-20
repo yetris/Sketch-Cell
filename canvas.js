@@ -1,0 +1,357 @@
+ <div class="mobile-warning">
+        Best experienced on desktop devices
+    </div>
+    
+    <header>
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="3" width="7" height="7" rx="1" fill="white"/>
+                <rect x="14" y="3" width="7" height="7" rx="1" fill="white" fill-opacity="0.7"/>
+                <rect x="3" y="14" width="7" height="7" rx="1" fill="white" fill-opacity="0.7"/>
+                <rect x="14" y="14" width="7" height="7" rx="1" fill="white"/>
+            </svg>
+            Sketch Cell
+        </div>
+        <div class="action-buttons">
+            <button id="clear-btn" class="secondary">Clear</button>
+            <button id="save-btn">Save</button>
+        </div>
+    </header>
+    
+    <div class="main-container">
+        <div class="toolbar">
+            <div class="tool active" data-tool="pencil">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.864 3.60051C17.4735 3.20999 16.8403 3.20999 16.4498 3.60051L7.71 12.3403L7.26 14.2403L9.16 13.7903L17.864 5.01051C18.2545 4.61998 18.2545 3.98681 17.864 3.60051L17.864 3.60051Z" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M16 6L18 8" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M4 20.0001H20" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="tool" data-tool="eraser">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 14L8.5 4.5C8.10218 4.10218 7.59239 3.87868 7.06 3.87868C6.52761 3.87868 6.01782 4.10218 5.62 4.5L4.5 5.62C4.10218 6.01782 3.87868 6.52761 3.87868 7.06C3.87868 7.59239 4.10218 8.10218 4.5 8.5L14 18H18" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14 18L19.5 12.5" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="tool" data-tool="line">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M5 19L19 5" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="tool" data-tool="rect">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="4" y="4" width="16" height="16" rx="1" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="tool" data-tool="circle">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="9" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+    </div>
+    
+    <div class="color-picker">
+        <div class="color active" style="background-color: #000000;" data-color="#000000"></div>
+        <div class="color" style="background-color: #ff4d4f;" data-color="#ff4d4f"></div>
+        <div class="color" style="background-color: #1890ff;" data-color="#1890ff"></div>
+        <div class="color" style="background-color: #52c41a;" data-color="#52c41a"></div>
+        <div class="color" style="background-color: #faad14;" data-color="#faad14"></div>
+        <div class="color" style="background-color: #722ed1;" data-color="#722ed1"></div>
+    </div>
+    
+    <div class="settings-panel">
+        <div class="setting">
+            <label for="stroke-width">Stroke Width</label>
+            <input type="range" id="stroke-width" min="1" max="30" value="3">
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        
+        // Current tool and settings
+        let currentTool = 'pencil';
+        let currentColor = '#000000';
+        let currentWidth = 3;
+        
+        // Start points for shapes
+        let startX;
+        let startY;
+        
+        // History for undo functionality
+        const history = [];
+        let historyIndex = -1;
+        
+        // Tools elements
+        const tools = document.querySelectorAll('.tool');
+        
+        // Colors elements
+        const colors = document.querySelectorAll('.color');
+        
+        // Stroke width element
+        const strokeWidthInput = document.getElementById('stroke-width');
+        
+        // Buttons
+        const clearBtn = document.getElementById('clear-btn');
+        const saveBtn = document.getElementById('save-btn');
+        
+        // Resize canvas to fit container
+        function resizeCanvas() {
+            const container = document.querySelector('.canvas-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            
+            // Redraw from history on resize
+            if (historyIndex >= 0) {
+                redrawCanvas();
+            }
+        }
+        
+        // Initialize canvas
+        function initCanvas() {
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Temporary canvas for shape drawing
+            tempCanvas = document.createElement('canvas');
+            tempCtx = tempCanvas.getContext('2d');
+            
+            // Set initial stroke style
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = currentColor;
+            ctx.lineWidth = currentWidth;
+            
+            // Save initial state
+            saveState();
+        }
+        
+        // Event listeners for drawing
+        function setupEventListeners() {
+            // Mouse events
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+            
+            // Touch events for mobile
+            canvas.addEventListener('touchstart', handleTouchStart);
+            canvas.addEventListener('touchmove', handleTouchMove);
+            canvas.addEventListener('touchend', handleTouchEnd);
+            
+            // Tool selection
+            tools.forEach(tool => {
+                tool.addEventListener('click', () => {
+                    // Remove active class from all tools
+                    tools.forEach(t => t.classList.remove('active'));
+                    // Add active class to selected tool
+                    tool.classList.add('active');
+                    currentTool = tool.dataset.tool;
+                });
+            });
+            
+            // Color selection
+            colors.forEach(color => {
+                color.addEventListener('click', () => {
+                    // Remove active class from all colors
+                    colors.forEach(c => c.classList.remove('active'));
+                    // Add active class to selected color
+                    color.classList.add('active');
+                    currentColor = color.dataset.color;
+                    ctx.strokeStyle = currentColor;
+                    
+                    // If using eraser, switch back to pencil
+                    if (currentTool === 'eraser') {
+                        currentTool = 'pencil';
+                        tools.forEach(t => t.classList.remove('active'));
+                        document.querySelector('[data-tool="pencil"]').classList.add('active');
+                    }
+                });
+            });
+            
+            // Stroke width change
+            strokeWidthInput.addEventListener('input', () => {
+                currentWidth = strokeWidthInput.value;
+                ctx.lineWidth = currentWidth;
+            });
+            
+            // Clear button
+            clearBtn.addEventListener('click', clearCanvas);
+            
+            // Save button
+            saveBtn.addEventListener('click', saveCanvas);
+        }
+        
+        // Drawing functions
+        function startDrawing(e) {
+            isDrawing = true;
+            
+            // Get mouse position
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            lastX = x;
+            lastY = y;
+            
+            // For shapes, record start position
+            if (['line', 'rect', 'circle'].includes(currentTool)) {
+                startX = x;
+                startY = y;
+                
+                // Create temporary copy of canvas for live drawing
+                tempCanvas.width = canvas.width;
+                tempCanvas.height = canvas.height;
+                tempCtx.drawImage(canvas, 0, 0);
+            } else if (currentTool === 'pencil') {
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+            } else if (currentTool === 'eraser') {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.strokeStyle = '#FFFFFF';
+            }
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (currentTool === 'pencil' || currentTool === 'eraser') {
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            } else if (['line', 'rect', 'circle'].includes(currentTool)) {
+                // Restore the original canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(tempCanvas, 0, 0);
+                
+                // Draw the current shape
+                ctx.beginPath();
+                
+                if (currentTool === 'line') {
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(x, y);
+                } else if (currentTool === 'rect') {
+                    ctx.rect(
+                        Math.min(startX, x),
+                        Math.min(startY, y),
+                        Math.abs(x - startX),
+                        Math.abs(y - startY)
+                    );
+                } else if (currentTool === 'circle') {
+                    const radius = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
+                    ctx.arc(startX, startY, radius, 0, Math.PI * 2);
+                }
+                
+                ctx.stroke();
+            }
+            
+            lastX = x;
+            lastY = y;
+        }
+        
+        function stopDrawing() {
+            if (!isDrawing) return;
+            
+            isDrawing = false;
+            
+            if (currentTool === 'eraser') {
+                ctx.restore();
+            }
+            
+            // Save the current state after drawing is complete
+            saveState();
+        }
+        
+        // Touch event handlers
+        function handleTouchStart(e) {
+            e.preventDefault();
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousedown', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                canvas.dispatchEvent(mouseEvent);
+            }
+        }
+        
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousemove', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                canvas.dispatchEvent(mouseEvent);
+            }
+        }
+        
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            const mouseEvent = new MouseEvent('mouseup', {});
+            canvas.dispatchEvent(mouseEvent);
+        }
+        
+        // Canvas state management
+        function saveState() {
+            // Remove any states after current index if we've gone back in history
+            if (historyIndex < history.length - 1) {
+                history.splice(historyIndex + 1);
+            }
+            
+            // Save current state
+            history.push(canvas.toDataURL());
+            historyIndex = history.length - 1;
+            
+            // Limit history size to prevent memory issues
+            if (history.length > 20) {
+                history.shift();
+                historyIndex--;
+            }
+        }
+        
+        function redrawCanvas() {
+            if (historyIndex < 0) return;
+            
+            const img = new Image();
+            img.src = history[historyIndex];
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+            };
+        }
+        
+        // Clear canvas
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            saveState();
+        }
+        
+        // Save canvas as image
+        function saveCanvas() {
+            const link = document.createElement('a');
+            link.download = 'sketch-cell-drawing.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Initialize everything
+        initCanvas();
+        setupEventListeners();
+    </script>
